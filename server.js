@@ -116,9 +116,9 @@ async function yahooHistory(tf) {
     }
   );
 
-  if (!out.ok) {
-    throw new Error(Yahoo HTTP ${out.status});
-  }
+ if (!out.ok) {
+  throw new Error('Yahoo HTTP ' + out.status);
+}
 
   let j;
 

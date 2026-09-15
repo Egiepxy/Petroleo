@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>SetupEgiP V42</title>
+<title>SetupEgiP V43</title>
 <style>
 :root{--bg:#0b1020;--card:#121a2c;--card2:#18233a;--text:#eef3ff;--muted:#9fb0ce;--line:#293754;--good:#22c55e;--bad:#ef4444;--warn:#f59e0b}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}.wrap{max-width:1180px;margin:auto;padding:12px}
@@ -57,8 +57,8 @@ button:active{transform:scale(.985)}
 <body>
 <div class="wrap">
 <div class="card">
-  <h1>SetupEgiP V42</h1>
-  <div class="versionHero"><div class="versionLabel">VERSÃO ATUAL</div><div class="versionNumber">V41</div><div class="versionBuild">Build V42.0 • servidor + histórico isolados por ativo</div></div>
+  <h1>SetupEgiP V43</h1>
+  <div class="versionHero"><div class="versionLabel">VERSÃO ATUAL</div><div class="versionNumber">V43</div><div class="versionBuild">Build V43.0 • troca automática de ativo corrigida</div></div>
   <div class="muted"><span id="headerAsset">OIL (Brent)</span> • MEXC • WebSocket ao vivo + histórico via servidor seguro</div>
 </div>
 
@@ -1004,7 +1004,9 @@ function updateAssetUI(){
   if($('headerAsset'))$('headerAsset').textContent=n;
   if($('contractName'))$('contractName').innerHTML=n+'<br><small>'+SYMBOL+'</small>';
   if($('alertAssetName'))$('alertAssetName').textContent=n;
-  document.title='SetupEgiP V42 — '+n;
+  if($('candleAsset'))$('candleAsset').textContent=n+' • aguardando dados';
+  if($('fourhAsset'))$('fourhAsset').textContent=n;
+  document.title='SetupEgiP V43 — '+n;
 }
 function resetAssetState(){
   ASSET_GENERATION++;
@@ -1202,9 +1204,14 @@ function v22BindCriticalControls(){
  const sel=$('assetInput'),btn=$('loadAssetBtn');
  if(sel){
    sel.value=SYMBOL;
-   sel.addEventListener('change',()=>{ 
+   sel.addEventListener('change',()=>{
       const n=normalizeSymbol(sel.value);
-      if(n && n!==SYMBOL){ showToast('Ativo selecionado: '+n+'. Toque em Carregar ativo.'); }
+      if(!n){showToast('Selecione um ativo.');return;}
+      sel.value=n;
+      if(n!==SYMBOL){
+        showToast('Trocando para '+(ASSET_NAMES[n]||n)+'...');
+        changeAsset();
+      }
    });
  }
  if(btn){

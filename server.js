@@ -255,7 +255,7 @@ app.get('/api/kline', async (req, res) => {
       if (
         j &&
         j.success !== false &&
-        n >= 210
+        n >= 100
       ) {
 
         res.set(

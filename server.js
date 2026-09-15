@@ -91,3 +91,311 @@ function aggregate4h(rows) {
 
   return [...buckets.values()].sort((a, b) => a.t - b.t);
 }
+function toMexcShape(rows) {
+  return {
+    time: rows.map(x => x.t),
+    open: rows.map(x => x.o),
+    high: rows.map(x => x.h),
+    low: rows.map(x => x.l),
+    close: rows.map(x => x.c),
+    vol: rows.map(x => x.v || 0)
+  };
+}
+
+async function yahooHistory(tf) {
+  const cfg = yahooConfig(tf);
+
+  const url =
+    ${YAHOO}/${encodeURIComponent(YAHOO_SYMBOL)} +
+    ?range=${cfg.range} +
+    &interval=${cfg.interval} +
+    &includePrePost=false +
+    &events=history;
+
+  const out = await fetchText(
+    url,
+    {
+      'accept': 'application/json',
+      'user-agent':
+        'Mozilla/5.0 (compatible; SetupEgiP/42)'
+    }
+  );
+
+  if (!out.ok) {
+    throw new Error(Yahoo HTTP ${out.status});
+  }
+
+  let j;
+
+  try {
+    j = JSON.parse(out.text);
+  } catch (e) {
+    throw new Error('Resposta histórica inválida');
+  }
+
+  const result = j?.chart?.result?.[0];
+  const ts = result?.timestamp || [];
+  const q = result?.indicators?.quote?.[0] || {};
+
+  const rows = [];
+
+  for (let i = 0; i < ts.length; i++) {
+    const o = Number(q.open?.[i]);
+    const h = Number(q.high?.[i]);
+    const l = Number(q.low?.[i]);
+    const c = Number(q.close?.[i]);
+    const v = Number(q.volume?.[i] || 0);
+
+    if (
+      !Number.isFinite(o) ||
+      !Number.isFinite(h) ||
+      !Number.isFinite(l) ||
+      !Number.isFinite(c)
+    ) {
+      continue;
+    }
+
+    rows.push({
+      t: Number(ts[i]),
+      o,
+      h,
+      l,
+      c,
+      v: Number.isFinite(v) ? v : 0
+    });
+  }
+
+  const finalRows =
+    tf === 'Hour4'
+      ? aggregate4h(rows)
+      : rows;
+
+  if (finalRows.length < 210) {
+    throw new Error(
+      A contingência forneceu apenas ${finalRows.length} candles
+    );
+  }
+
+  return finalRows.slice(-700);
+}
+
+/* ==============================================
+   HISTÓRICO — V42
+   ISOLAMENTO TOTAL POR ATIVO
+   ============================================== */
+
+app.get('/api/kline', async (req, res) => {
+
+  const symbol = String(
+    req.query.symbol || 'UKOIL_USDT'
+  )
+    .trim()
+    .toUpperCase();
+
+  const interval = String(
+    req.query.interval || 'Hour4'
+  ).trim();
+
+  const start = String(
+    req.query.start || ''
+  ).trim();
+
+  const end = String(
+    req.query.end || ''
+  ).trim();
+
+  if (!allowedIntervals.has(interval)) {
+    return res.status(400).json({
+      success: false,
+      message: 'intervalo inválido'
+    });
+  }
+
+  if (!/^[A-Z0-9_]+$/.test(symbol)) {
+    return res.status(400).json({
+      success: false,
+      message: 'símbolo inválido'
+    });
+  }
+  /* ==============================================
+     1 — TENTA O ATIVO SOLICITADO NA MEXC
+     ============================================== */
+
+  try {
+
+    const qs = new URLSearchParams({
+      interval
+    });
+
+    if (start) {
+      qs.set('start', start);
+    }
+
+    if (end) {
+      qs.set('end', end);
+    }
+
+    const url =
+      ${MEXC}/api/v1/contract/kline/ +
+      ${encodeURIComponent(symbol)}? +
+      ${qs.toString()};
+
+    const out = await fetchText(
+      url,
+      {
+        'accept': 'application/json',
+        'user-agent': 'SetupEgiP/42'
+      }
+    );
+
+    if (out.ok) {
+
+      let j = null;
+
+      try {
+        j = JSON.parse(out.text);
+      } catch (_) {}
+
+      const n =
+        j?.data?.time?.length || 0;
+
+      if (
+        j &&
+        j.success !== false &&
+        n >= 210
+      ) {
+
+        res.set(
+          'cache-control',
+          'no-store'
+        );
+
+        return res.json({
+          ...j,
+
+          requestedSymbol: symbol,
+          referenceSymbol: symbol,
+          fallback: false,
+
+          source:
+            MEXC histórico • ${symbol}
+        });
+      }
+    }
+
+  } catch (_) {}
+
+  /* ==============================================
+     2 — PROTEÇÃO V42
+
+     BTC, ETH, SOL ETC. NÃO PODEM
+     RECEBER HISTÓRICO DO BRENT.
+     ============================================== */
+
+  if (symbol !== 'UKOIL_USDT') {
+
+    res.set(
+      'cache-control',
+      'no-store'
+    );
+
+    return res.status(502).json({
+
+      success: false,
+
+      requestedSymbol: symbol,
+
+      message:
+        `Histórico MEXC indisponível para ${symbol}. ` +
+        Fallback Brent recusado por segurança.
+
+    });
+  }
+
+  /* ==============================================
+     3 — SOMENTE O OIL PODE USAR BZ=F
+     ============================================== */
+
+  try {
+
+    const rows =
+      await yahooHistory(interval);
+
+    res.set(
+      'cache-control',
+      'no-store'
+    );
+
+    return res.json({
+
+      success: true,
+      code: 0,
+
+      source:
+        'Fallback histórico Brent BZ=F • exclusivo OIL',
+
+      fallback: true,
+
+      requestedSymbol: symbol,
+
+      referenceSymbol:
+        YAHOO_SYMBOL,
+
+      data:
+        toMexcShape(rows)
+
+    });
+
+  } catch (err) {
+
+    return res.status(502).json({
+
+      success: false,
+
+      requestedSymbol: symbol,
+
+      message:
+        'MEXC bloqueou o histórico do OIL e ' +
+        'a contingência Brent também falhou',
+
+      detail:
+        String(err.message || err)
+
+    });
+  }
+
+});
+/* ==============================================
+   ARQUIVOS DO APP
+   ============================================== */
+
+app.use(
+  express.static(
+    path.join(__dirname, 'public'),
+    {
+      etag: true,
+      maxAge: '5m'
+    }
+  )
+);
+
+app.get('*', (req, res) => {
+
+  res.sendFile(
+    path.join(
+      __dirname,
+      'public',
+      'index.html'
+    )
+  );
+
+});
+
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      SetupEgiP V42 ativo na porta ${PORT}
+    );
+  }
+);

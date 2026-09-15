@@ -270,8 +270,7 @@ app.get('/api/kline', async (req, res) => {
           referenceSymbol: symbol,
           fallback: false,
 
-          source:
-            MEXC histórico • ${symbol}
+         source: 'MEXC histórico - ' + symbol
         });
       }
     }

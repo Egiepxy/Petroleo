@@ -232,11 +232,7 @@ app.get('/api/kline', async (req, res) => {
       qs.set('end', end);
     }
 
-    const url =
-      ${MEXC}/api/v1/contract/kline/ +
-      ${encodeURIComponent(symbol)}? +
-      ${qs.toString()};
-
+    const url = MEXC + '/api/v1/contract/kline/' + encodeURIComponent(symbol) + '?' + qs.toString();
     const out = await fetchText(
       url,
       {

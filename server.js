@@ -387,7 +387,7 @@ app.listen(
   PORT,
   () => {
     console.log(
-      SetupEgiP V42 ativo na porta ${PORT}
+      'SetupEgiP V42 ativo na porta ' + PORT
     );
   }
 );

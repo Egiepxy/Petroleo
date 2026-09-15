@@ -299,7 +299,7 @@ app.get('/api/kline', async (req, res) => {
 
       message:
         `Histórico MEXC indisponível para ${symbol}. ` +
-        Fallback Brent recusado por segurança.
+      'Fallback Brent recusado por segurança.'
 
     });
   }

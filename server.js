@@ -105,15 +105,7 @@ function toMexcShape(rows) {
 async function yahooHistory(tf) {
   const cfg = yahooConfig(tf);
 
-  const url =
-   server.js:109
-    ${YAHOO}/${encodeURIComponent(YAHOO_SYMBOL)} +
-    ^
-SyntaxError: Unexpected token '{'
-    ?range=${cfg.range} +
-    &interval=${cfg.interval} +
-    &includePrePost=false +
-    &events=history;
+  const url = YAHOO + '/' + encodeURIComponent(YAHOO_SYMBOL) + '?range=' + cfg.range + '&interval=' + cfg.interval + '&includePrePost=false&events=history';
 
   const out = await fetchText(
     url,

@@ -165,11 +165,13 @@ async function yahooHistory(tf) {
       ? aggregate4h(rows)
       : rows;
 
-  if (finalRows.length < 210) {
-    throw new Error(
-      A contingência forneceu apenas ${finalRows.length} candles
-    );
-  }
+ if (finalRows.length < 210) {
+  throw new Error(
+    'A contingência forneceu apenas ' +
+    finalRows.length +
+    ' candles'
+  );
+}
 
   return finalRows.slice(-700);
 }

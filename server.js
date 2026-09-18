@@ -358,8 +358,54 @@ app.get('/api/kline', async (req, res) => {
 
 });
 /* ==============================================
-   ARQUIVOS DO APP
+   RADAR MEXC — V47
+   Lista de contratos e cotações
    ============================================== */
+
+app.get('/api/mexc/contracts', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  try {
+    const url = MEXC + '/api/v1/contract/ticker';
+
+    const out = await fetchText(
+      url,
+      { accept: 'application/json' },
+      15000
+    );
+
+    if (!out.ok) {
+      throw new Error('MEXC HTTP ' + out.status);
+    }
+
+    const json = JSON.parse(out.text);
+
+    if (json.success === false ||
+        !Array.isArray(json.data)) {
+      throw new Error('Resposta MEXC inválida');
+    }
+
+    const contracts = json.data.filter(
+      item =>
+        item.symbol &&
+        item.symbol.endsWith('_USDT')
+    );
+
+    return res.json({
+      success: true,
+      source: 'MEXC',
+      count: contracts.length,
+      data: contracts
+    });
+
+  } catch (err) {
+    return res.status(502).json({
+      success: false,
+      message: 'Falha ao consultar contratos MEXC',
+      detail: String(err.message || err)
+    });
+  }
+});
 
 app.use(
   express.static(
